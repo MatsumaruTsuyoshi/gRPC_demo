@@ -6,6 +6,8 @@ import (
 	"net"
 	"log"
 	"os"
+	"errors"
+	"io"
 	"os/signal"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -41,6 +43,24 @@ func (s *myServer) HelloServerStream(req *hellopb.HelloRequest, stream hellopb.G
 	}
 	// return文でメソッドを終了させる=ストリームの終わり
 	return nil
+}
+
+
+func (s *myServer) HelloClientStream(stream hellopb.GreetingService_HelloClientStreamServer) error {
+	nameList := make([]string, 0)
+	for {
+		req, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			message := fmt.Sprintf("Hello, %v!", nameList)
+			return stream.SendAndClose(&hellopb.HelloResponse{
+				Message: message,
+			})
+		}
+		if err != nil {
+			return err
+		}
+		nameList = append(nameList, req.GetName())
+	}
 }
 
 func main() {
