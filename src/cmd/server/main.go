@@ -28,6 +28,21 @@ func (s *myServer) Hello(ctx context.Context, req *hellopb.HelloRequest) (*hello
 	}, nil
 }
 
+// Server Stream RPCがレスポンスを返すところ
+func (s *myServer) HelloServerStream(req *hellopb.HelloRequest, stream hellopb.GreetingService_HelloServerStreamServer) error {
+	resCount := 5
+	for i := 0; i < resCount; i++ {
+		if err := stream.Send(&hellopb.HelloResponse{
+			Message: fmt.Sprintf("[%d] Hello, %s!", i, req.GetName()),
+		}); err != nil {
+			return err
+		}
+		// time.Sleep(time.Second * 1)
+	}
+	// return文でメソッドを終了させる=ストリームの終わり
+	return nil
+}
+
 func main() {
 	// 1. 8080番portのLisnterを作成
 	port := 8080
