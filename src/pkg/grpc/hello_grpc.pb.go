@@ -24,6 +24,8 @@ type GreetingServiceClient interface {
 	HelloServerStream(ctx context.Context, in *HelloRequest, opts ...grpc.CallOption) (GreetingService_HelloServerStreamClient, error)
 	// クライアントストリーミングRPC
 	HelloClientStream(ctx context.Context, opts ...grpc.CallOption) (GreetingService_HelloClientStreamClient, error)
+	// 双方向ストリーミングRPC
+	HelloBiStreams(ctx context.Context, opts ...grpc.CallOption) (GreetingService_HelloBiStreamsClient, error)
 }
 
 type greetingServiceClient struct {
@@ -109,6 +111,37 @@ func (x *greetingServiceHelloClientStreamClient) CloseAndRecv() (*HelloResponse,
 	return m, nil
 }
 
+func (c *greetingServiceClient) HelloBiStreams(ctx context.Context, opts ...grpc.CallOption) (GreetingService_HelloBiStreamsClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GreetingService_ServiceDesc.Streams[2], "/myapp.GreetingService/HelloBiStreams", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &greetingServiceHelloBiStreamsClient{stream}
+	return x, nil
+}
+
+type GreetingService_HelloBiStreamsClient interface {
+	Send(*HelloRequest) error
+	Recv() (*HelloResponse, error)
+	grpc.ClientStream
+}
+
+type greetingServiceHelloBiStreamsClient struct {
+	grpc.ClientStream
+}
+
+func (x *greetingServiceHelloBiStreamsClient) Send(m *HelloRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *greetingServiceHelloBiStreamsClient) Recv() (*HelloResponse, error) {
+	m := new(HelloResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // GreetingServiceServer is the server API for GreetingService service.
 // All implementations must embed UnimplementedGreetingServiceServer
 // for forward compatibility
@@ -119,6 +152,8 @@ type GreetingServiceServer interface {
 	HelloServerStream(*HelloRequest, GreetingService_HelloServerStreamServer) error
 	// クライアントストリーミングRPC
 	HelloClientStream(GreetingService_HelloClientStreamServer) error
+	// 双方向ストリーミングRPC
+	HelloBiStreams(GreetingService_HelloBiStreamsServer) error
 	mustEmbedUnimplementedGreetingServiceServer()
 }
 
@@ -134,6 +169,9 @@ func (UnimplementedGreetingServiceServer) HelloServerStream(*HelloRequest, Greet
 }
 func (UnimplementedGreetingServiceServer) HelloClientStream(GreetingService_HelloClientStreamServer) error {
 	return status.Errorf(codes.Unimplemented, "method HelloClientStream not implemented")
+}
+func (UnimplementedGreetingServiceServer) HelloBiStreams(GreetingService_HelloBiStreamsServer) error {
+	return status.Errorf(codes.Unimplemented, "method HelloBiStreams not implemented")
 }
 func (UnimplementedGreetingServiceServer) mustEmbedUnimplementedGreetingServiceServer() {}
 
@@ -213,6 +251,32 @@ func (x *greetingServiceHelloClientStreamServer) Recv() (*HelloRequest, error) {
 	return m, nil
 }
 
+func _GreetingService_HelloBiStreams_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(GreetingServiceServer).HelloBiStreams(&greetingServiceHelloBiStreamsServer{stream})
+}
+
+type GreetingService_HelloBiStreamsServer interface {
+	Send(*HelloResponse) error
+	Recv() (*HelloRequest, error)
+	grpc.ServerStream
+}
+
+type greetingServiceHelloBiStreamsServer struct {
+	grpc.ServerStream
+}
+
+func (x *greetingServiceHelloBiStreamsServer) Send(m *HelloResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *greetingServiceHelloBiStreamsServer) Recv() (*HelloRequest, error) {
+	m := new(HelloRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // GreetingService_ServiceDesc is the grpc.ServiceDesc for GreetingService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -234,6 +298,12 @@ var GreetingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "HelloClientStream",
 			Handler:       _GreetingService_HelloClientStream_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "HelloBiStreams",
+			Handler:       _GreetingService_HelloBiStreams_Handler,
+			ServerStreams: true,
 			ClientStreams: true,
 		},
 	},
