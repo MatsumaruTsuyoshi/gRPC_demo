@@ -11,6 +11,9 @@ import (
 	"os/signal"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	hellopb "mygrpc/pkg/grpc"
 )
 
@@ -23,6 +26,13 @@ type myServer struct {
 }
 
 func (s *myServer) Hello(ctx context.Context, req *hellopb.HelloRequest) (*hellopb.HelloResponse, error) {
+	// (何か処理をしてエラーが発生した)
+	stat := status.New(codes.Unknown, "unknown error occurred")
+	stat, _ = stat.WithDetails(&errdetails.DebugInfo{
+		Detail: "detail reason of err",
+	})
+	err := stat.Err()
+	return nil, err
 	// リクエストからnameフィールドを取り出して
 	// "Hello, [名前]!"というレスポンスを返す
 	return &hellopb.HelloResponse{
